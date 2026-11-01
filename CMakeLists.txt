@@ -4,16 +4,25 @@ project(bancada_sim LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(simcli tools/simcli/main.cpp)
-target_include_directories(simcli PRIVATE core/engine)
+# Copia a ngspice.dll para a pasta de saída de qualquer executável que a use
+function(copy_ngspice_dll target)
+  if(WIN32)
+    add_custom_command(TARGET ${target} POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy_if_different
+              ${CMAKE_SOURCE_DIR}/third_party/ngspice/ngspice.dll
+              $<TARGET_FILE_DIR:${target}>)
+  endif()
+endfunction()
 
-# No Windows, copia a ngspice.dll para a pasta do executável após cada build
-if(WIN32)
-  add_custom_command(TARGET simcli POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_if_different
-            ${CMAKE_SOURCE_DIR}/third_party/ngspice/ngspice.dll
-            $<TARGET_FILE_DIR:simcli>)
-endif()
+# Núcleo do simulador, reutilizado pelo simcli e pelos testes
+add_library(bancada_core STATIC core/engine/ngspice_engine.cpp)
+target_include_directories(bancada_core PUBLIC
+  ${CMAKE_SOURCE_DIR}/core
+  ${CMAKE_SOURCE_DIR}/core/engine)
+
+add_executable(simcli tools/simcli/main.cpp)
+target_link_libraries(simcli PRIVATE bancada_core)
+copy_ngspice_dll(simcli)
 
 include(FetchContent)
 FetchContent_Declare(

@@ -1,36 +1,24 @@
-#include <windows.h>
 #include <cstdio>
-#include "ngspice_api.h"
-
-// Recebe o texto que o ngspice quer mostrar e imprime na tela
-static int OnText(char* text, int /*id*/, void* /*user*/) {
-    std::printf("%s\n", text);
-    return 0;
-}
+#include <string>
+#include "engine/ngspice_engine.h"
+#include "model/circuit.h"
+#include "model/component.h"
 
 int main() {
-    // 1. Abre a DLL em tempo de execução
-    HMODULE lib = LoadLibraryA("ngspice.dll");
-    if (!lib) {
-        std::printf("Falha ao carregar ngspice.dll (erro %lu)\n", GetLastError());
+    Circuit circuit{"RC passa-baixas"};
+    circuit.add(VoltageSource{"V1", "n1", "0", 5.0});
+    circuit.add(Resistor{"R1", "n1", "n2", 1000.0});
+    circuit.add(Capacitor{"C1", "n2", "0", 1e-6});
+    circuit.setTransient(1e-5, 5e-3);
+
+    NgSpiceEngine engine;
+    std::string error;
+    if (!engine.load("ngspice.dll", error) || !engine.runNetlist(circuit.toNetlist(), error)) {
+        std::printf("Erro: %s\n", error.c_str());
         return 1;
     }
 
-    // 2. Obtém as funções pelo nome
-    auto init    = reinterpret_cast<NgSpice_Init_Fn>(GetProcAddress(lib, "ngSpice_Init"));
-    auto command = reinterpret_cast<NgSpice_Command_Fn>(GetProcAddress(lib, "ngSpice_Command"));
-    if (!init || !command) {
-        std::printf("Funções do ngspice não encontradas\n");
-        FreeLibrary(lib);
-        return 1;
-    }
-
-    // 3. Inicializa o motor, registrando só o callback de texto
-    init(OnText, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
-
-    // 4. Pede a versão do motor
-    command("version");
-
-    FreeLibrary(lib);
+    const auto v = engine.vector("v(n2)");
+    std::printf("%zu pontos; v(n2) em 5 ms = %.4f V (esperado ~4.9663 V)\n", v.size(), v.back());
     return 0;
 }
