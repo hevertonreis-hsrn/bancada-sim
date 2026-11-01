@@ -27,3 +27,16 @@ struct Capacitor {
         return line.str();
     }
 };
+
+struct VoltageSource {
+    std::string name;
+    std::string node1;
+    std::string node2;
+    double volts;
+
+    std::string toSpiceLine() const {
+        std::ostringstream line;
+        line << name << ' ' << node1 << ' ' << node2 << " DC " << volts;
+        return line.str();
+    }
+};
