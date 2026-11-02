@@ -1,40 +1,65 @@
 #pragma once
+#include <algorithm>
 #include <sstream>
+#include <stdexcept>
 #include <string>
 #include <utility>
 #include <vector>
+#include "model/component.h"
 
-class Circuit
-{
+class Circuit {
 public:
     explicit Circuit(std::string title) : title_(std::move(title)) {}
 
-    // Aceita qualquer tipo que tenha o método toSpiceLine()
-    template <typename Component>
-    void add(const Component &component)
-    {
-        lines_.push_back(component.toSpiceLine());
+    // Nomes são únicos: a interface vai localizar componentes por nome
+    void add(const AnyComponent& component) {
+        const std::string name = componentName(component);
+        if (exists(name)) {
+            throw std::invalid_argument("componente duplicado: " + name);
+        }
+        components_.push_back(component);
     }
 
-    void setTransient(double step, double stop)
-    {
+    bool remove(const std::string& name) {
+        auto it = std::find_if(components_.begin(), components_.end(),
+            [&](const AnyComponent& c) { return componentName(c) == name; });
+        if (it == components_.end()) return false;
+        components_.erase(it);
+        return true;
+    }
+
+    const std::vector<AnyComponent>& components() const { return components_; }
+
+    void setTransient(double step, double stop) {
         std::ostringstream line;
-        // "0 uic": começa em t = 0 com as condições iniciais (capacitor descarregado),
-        // sem calcular o ponto de operação DC
         line << ".tran " << step << ' ' << stop << " 0 uic";
         transient_ = line.str();
     }
 
-    std::string toNetlist() const
-    {
-        std::ostringstream out;
-        out << title_ << '\n'; // a primeira linha é sempre o título
-        for (const auto &line : lines_)
-        {
-            out << line << '\n';
+    // Lista de problemas encontrados. Lista vazia significa circuito válido.
+    std::vector<std::string> validate() const {
+        std::vector<std::string> errors;
+        bool hasGround = false;
+        for (const auto& c : components_) {
+            const auto nodes = componentNodes(c);
+            if (nodes[0] == "0" || nodes[1] == "0") hasGround = true;
+            if (nodes[0] == nodes[1]) {
+                errors.push_back(componentName(c) + ": os dois terminais estao no mesmo no");
+            }
         }
-        if (!transient_.empty())
-        {
+        if (!hasGround) {
+            errors.push_back("circuito sem no de terra (0)");
+        }
+        return errors;
+    }
+
+    std::string toNetlist() const {
+        std::ostringstream out;
+        out << title_ << '\n';
+        for (const auto& c : components_) {
+            out << componentToSpice(c) << '\n';
+        }
+        if (!transient_.empty()) {
             out << transient_ << '\n';
         }
         out << ".end\n";
@@ -42,7 +67,12 @@ public:
     }
 
 private:
+    bool exists(const std::string& name) const {
+        return std::any_of(components_.begin(), components_.end(),
+            [&](const AnyComponent& c) { return componentName(c) == name; });
+    }
+
     std::string title_;
-    std::vector<std::string> lines_;
+    std::vector<AnyComponent> components_;
     std::string transient_;
 };
