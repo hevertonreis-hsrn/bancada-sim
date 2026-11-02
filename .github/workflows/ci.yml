@@ -1,0 +1,30 @@
+name: CI
+
+on:
+    push:
+    pull_request:
+
+jobs:
+    build:
+        strategy:
+            fail-fast: false
+            matrix:
+                os: [ubuntu-latest, windows-latest]
+        runs-on: ${{ matrix.os }}
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Instala ngspice (Linux)
+              if: runner.os == 'Linux'
+              run: |
+                  sudo apt-get update
+                  sudo apt-get install -y libngspice0-dev
+
+            - name: Configura
+              run: cmake -S . -B build
+
+            - name: Compila
+              run: cmake --build build --config Debug
+
+            - name: Testa
+              run: ctest --test-dir build -C Debug --output-on-failure

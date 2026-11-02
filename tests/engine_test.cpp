@@ -17,7 +17,7 @@ TEST_CASE("RC simulado segue a formula analitica") {
 
     NgSpiceEngine engine;
     std::string error;
-    const bool loaded = engine.load("ngspice.dll", error);
+    const bool loaded = engine.load(kNgspiceLibrary, error);
     INFO(error);
     REQUIRE(loaded);
     REQUIRE(engine.runNetlist(circuit.toNetlist(), error));

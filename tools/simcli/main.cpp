@@ -13,7 +13,7 @@ int main() {
 
     NgSpiceEngine engine;
     std::string error;
-    if (!engine.load("ngspice.dll", error) || !engine.runNetlist(circuit.toNetlist(), error)) {
+    if (!engine.load(kNgspiceLibrary, error) || !engine.runNetlist(circuit.toNetlist(), error)) {
         std::printf("Erro: %s\n", error.c_str());
         return 1;
     }
