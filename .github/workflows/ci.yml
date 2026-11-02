@@ -14,11 +14,12 @@ jobs:
         steps:
             - uses: actions/checkout@v4
 
-            - name: Instala ngspice (Linux)
+            - name: Instala dependências (Linux)
               if: runner.os == 'Linux'
               run: |
-                  sudo apt-get update
-                  sudo apt-get install -y libngspice0-dev
+                sudo apt-get update
+                sudo apt-get install -y libngspice0-dev libgl-dev libx11-dev \
+                  libxrandr-dev libxinerama-dev libxcursor-dev libxi-dev
 
             - name: Configura
               run: cmake -S . -B build
