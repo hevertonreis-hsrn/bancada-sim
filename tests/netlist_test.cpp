@@ -36,3 +36,8 @@ TEST_CASE("circuito RC gera netlist completa")
             ".tran 1e-05 0.005 0 uic\n"
             ".end\n");
 }
+
+TEST_CASE("fonte senoidal gera linha SPICE") {
+    SineSource s{"V2", "n1", "0", 0.0, 2.0, 1000.0};
+    REQUIRE(s.toSpiceLine() == "V2 n1 0 SIN(0 2 1000)");
+}

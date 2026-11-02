@@ -43,3 +43,37 @@ TEST_CASE("RC simulado segue a formula analitica") {
     }
     REQUIRE(std::fabs(v[idx] - 3.16) < 0.05);
 }
+
+TEST_CASE("RC com senoide de 1 kHz atenua conforme |H(f)|") {
+    Circuit circuit{"RC senoidal"};
+    circuit.add(SineSource{"V2", "n1", "0", 0.0, 2.0, 1000.0});
+    circuit.add(Resistor{"R1", "n1", "n2", 1000.0});
+    circuit.add(Capacitor{"C1", "n2", "0", 1e-6});
+    circuit.setTransient(1e-6, 10e-3);
+
+    NgSpiceEngine engine;
+    std::string error;
+    const bool loaded = engine.load(kNgspiceLibrary, error);
+    INFO(error);
+    REQUIRE(loaded);
+    REQUIRE(engine.runNetlist(circuit.toNetlist(), error));
+
+    const auto t = engine.vector("time");
+    const auto v = engine.vector("v(n2)");
+    REQUIRE(v.size() == t.size());
+
+    // Último período (9 ms a 10 ms): o transitório já decaiu, já que τ = 1 ms
+    double vmax = -1e9;
+    double vmin = 1e9;
+    for (std::size_t i = 0; i < t.size(); ++i) {
+        if (t[i] >= 9e-3) {
+            vmax = std::max(vmax, v[i]);
+            vmin = std::min(vmin, v[i]);
+        }
+    }
+    const double amplitude = (vmax - vmin) / 2.0;
+
+    const double kPi = 3.14159265358979323846;
+    const double expected = 2.0 / std::sqrt(1.0 + std::pow(2 * kPi * 1000.0 * 1e-3, 2));  // ≈ 0,314 V
+    REQUIRE(std::fabs(amplitude - expected) < 0.01);
+}

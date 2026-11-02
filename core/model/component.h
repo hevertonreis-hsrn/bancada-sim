@@ -4,59 +4,87 @@
 #include <variant>
 #include <vector>
 
-struct Resistor {
+struct Resistor
+{
     std::string name;
     std::string node1;
     std::string node2;
     double ohms;
 
-    std::string toSpiceLine() const {
+    std::string toSpiceLine() const
+    {
         std::ostringstream line;
         line << name << ' ' << node1 << ' ' << node2 << ' ' << ohms;
         return line.str();
     }
 };
 
-struct Capacitor {
+struct Capacitor
+{
     std::string name;
     std::string node1;
     std::string node2;
     double farads;
 
-    std::string toSpiceLine() const {
+    std::string toSpiceLine() const
+    {
         std::ostringstream line;
         line << name << ' ' << node1 << ' ' << node2 << ' ' << farads;
         return line.str();
     }
 };
 
-struct VoltageSource {
+struct VoltageSource
+{
     std::string name;
     std::string node1;
     std::string node2;
     double volts;
 
-    std::string toSpiceLine() const {
+    std::string toSpiceLine() const
+    {
         std::ostringstream line;
         line << name << ' ' << node1 << ' ' << node2 << " DC " << volts;
         return line.str();
     }
 };
 
+struct SineSource
+{
+    std::string name;
+    std::string node1;
+    std::string node2;
+    double offset;
+    double amplitude;
+    double frequency;
+
+    std::string toSpiceLine() const
+    {
+        std::ostringstream line;
+        line << name << ' ' << node1 << ' ' << node2
+             << " SIN(" << offset << ' ' << amplitude << ' ' << frequency << ')';
+        return line.str();
+    }
+};
+
 // Qualquer componente do circuito. Para adicionar um tipo, inclua-o aqui.
-using AnyComponent = std::variant<Resistor, Capacitor, VoltageSource>;
+using AnyComponent = std::variant<Resistor, Capacitor, VoltageSource, SineSource>;
 
 // std::visit chama a versão certa para o tipo que está dentro do variant
-inline std::string componentName(const AnyComponent& c) {
-    return std::visit([](const auto& comp) { return comp.name; }, c);
+inline std::string componentName(const AnyComponent &c)
+{
+    return std::visit([](const auto &comp)
+                      { return comp.name; }, c);
 }
 
-inline std::string componentToSpice(const AnyComponent& c) {
-    return std::visit([](const auto& comp) { return comp.toSpiceLine(); }, c);
+inline std::string componentToSpice(const AnyComponent &c)
+{
+    return std::visit([](const auto &comp)
+                      { return comp.toSpiceLine(); }, c);
 }
 
-inline std::vector<std::string> componentNodes(const AnyComponent& c) {
-    return std::visit([](const auto& comp) -> std::vector<std::string> {
-        return {comp.node1, comp.node2};
-    }, c);
+inline std::vector<std::string> componentNodes(const AnyComponent &c)
+{
+    return std::visit([](const auto &comp) -> std::vector<std::string>
+                      { return {comp.node1, comp.node2}; }, c);
 }
