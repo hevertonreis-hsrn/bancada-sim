@@ -1,7 +1,6 @@
 #include "ngspice_engine.h"
-#include <windows.h>
 #include <sstream>
-#include <cstdio>
+#include "dynlib.h"
 
 static int OnText(char* text, int, void*) {
     std::printf("[ngspice] %s\n", text);
@@ -9,27 +8,26 @@ static int OnText(char* text, int, void*) {
 }
 
 template <typename F>
-static F resolve(HMODULE lib, const char* name) {
-    return reinterpret_cast<F>(GetProcAddress(lib, name));
+static F resolve(void* lib, const char* name) {
+    return reinterpret_cast<F>(dynlib::symbol(lib, name));
 }
 
 NgSpiceEngine::~NgSpiceEngine() {
-    if (lib_) FreeLibrary(static_cast<HMODULE>(lib_));
+    dynlib::close(lib_);
 }
 
-bool NgSpiceEngine::load(const std::string& dllName, std::string& error) {
-    HMODULE lib = LoadLibraryA(dllName.c_str());
-    if (!lib) {
-        error = "falha ao carregar " + dllName + " (erro " + std::to_string(GetLastError()) + ")";
+bool NgSpiceEngine::load(const std::string& libPath, std::string& error) {
+    lib_ = dynlib::open(libPath, error);
+    if (!lib_) {
+        error = "falha ao carregar " + libPath + ": " + error;
         return false;
     }
-    lib_ = lib;
-    init_      = resolve<NgSpice_Init_Fn>(lib, "ngSpice_Init");
-    circ_      = resolve<NgSpice_Circ_Fn>(lib, "ngSpice_Circ");
-    command_   = resolve<NgSpice_Command_Fn>(lib, "ngSpice_Command");
-    getVecInfo_ = resolve<NgGet_Vec_Info_Fn>(lib, "ngGet_Vec_Info");
+    init_       = resolve<NgSpice_Init_Fn>(lib_, "ngSpice_Init");
+    circ_       = resolve<NgSpice_Circ_Fn>(lib_, "ngSpice_Circ");
+    command_    = resolve<NgSpice_Command_Fn>(lib_, "ngSpice_Command");
+    getVecInfo_ = resolve<NgGet_Vec_Info_Fn>(lib_, "ngGet_Vec_Info");
     if (!init_ || !circ_ || !command_ || !getVecInfo_) {
-        error = "funções do ngspice ausentes na DLL";
+        error = "funções do ngspice ausentes em " + libPath;
         return false;
     }
     init_(OnText, nullptr, nullptr, nullptr, nullptr, nullptr, nullptr);
@@ -54,7 +52,7 @@ bool NgSpiceEngine::runNetlist(const std::string& netlist, std::string& error) {
         return false;
     }
     char run[] = "run";
-    command_(run);  // "run" é síncrono: retorna quando a simulação termina
+    command_(run);
     return true;
 }
 
