@@ -77,3 +77,31 @@ TEST_CASE("RC com senoide de 1 kHz atenua conforme |H(f)|") {
     const double expected = 2.0 / std::sqrt(1.0 + std::pow(2 * kPi * 1000.0 * 1e-3, 2));  // ≈ 0,314 V
     REQUIRE(std::fabs(amplitude - expected) < 0.01);
 }
+
+TEST_CASE("tmax de 10 us mantem a precisao do RC") {
+    Circuit circuit{"RC tmax"};
+    circuit.add(VoltageSource{"V1", "n1", "0", 5.0});
+    circuit.add(Resistor{"R1", "n1", "n2", 1000.0});
+    circuit.add(Capacitor{"C1", "n2", "0", 1e-6});
+    circuit.setTransient(1e-6, 5e-3, 1e-5);
+
+    NgSpiceEngine engine;
+    std::string error;
+    const bool loaded = engine.load(kNgspiceLibrary, error);
+    INFO(error);
+    REQUIRE(loaded);
+    REQUIRE(engine.runNetlist(circuit.toNetlist(), error));
+
+    const auto t = engine.vector("time");
+    const auto v = engine.vector("v(n2)");
+    REQUIRE(v.size() == t.size());
+    REQUIRE(t.size() < 10000);  // confirma que o solver deu menos passos
+
+    const double tau = 1000.0 * 1e-6;
+    double maxError = 0.0;
+    for (std::size_t i = 0; i < t.size(); ++i) {
+        const double expected = 5.0 * (1.0 - std::exp(-t[i] / tau));
+        maxError = std::max(maxError, std::fabs(v[i] - expected));
+    }
+    REQUIRE(maxError < 0.05);
+}
