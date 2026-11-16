@@ -36,7 +36,8 @@ FetchContent_MakeAvailable(glfw imgui Catch2)
 
 add_library(bancada_core STATIC
   core/engine/ngspice_engine.cpp
-  core/engine/dynlib.cpp)
+  core/engine/dynlib.cpp
+  core/scope/scope_math.cpp)
 target_include_directories(bancada_core PUBLIC
   ${CMAKE_SOURCE_DIR}/core
   ${CMAKE_SOURCE_DIR}/core/engine)
