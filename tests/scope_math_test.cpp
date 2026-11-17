@@ -2,6 +2,8 @@
 #include <cmath>
 #include <stdexcept>
 #include "scope/scope_math.h"
+#include <optional>
+#include <vector>
 
 // Comparação com tolerância, para números em ponto flutuante
 static bool near(double a, double b) {
@@ -40,4 +42,28 @@ TEST_CASE("escala nao positiva eh rejeitada") {
     REQUIRE_THROWS_AS(scope::voltsToDivisions(1.0, 0.0, 0.0), std::invalid_argument);
     REQUIRE_THROWS_AS(scope::secondsToDivisions(1.0, -1.0), std::invalid_argument);
     REQUIRE_THROWS_AS(scope::divisionsToNdc(1.0, 0.0), std::invalid_argument);
+}
+
+TEST_CASE("borda de subida eh encontrada no cruzamento do nivel") {
+    const std::vector<double> s{0.0, 0.2, 0.6, 1.0};
+    const auto idx = scope::findRisingEdge(s, 0.5);
+    REQUIRE(idx.has_value());
+    REQUIRE(*idx == 2);
+}
+
+TEST_CASE("borda de descida nao dispara o gatilho") {
+    const std::vector<double> s{1.0, 0.6, 0.2, 0.0};
+    REQUIRE_FALSE(scope::findRisingEdge(s, 0.5).has_value());
+}
+
+TEST_CASE("busca a partir de um indice ignora cruzamentos anteriores") {
+    const std::vector<double> s{0.0, 1.0, 0.0, 1.0};
+    const auto idx = scope::findRisingEdge(s, 0.5, 2);
+    REQUIRE(idx.has_value());
+    REQUIRE(*idx == 3);
+}
+
+TEST_CASE("sinal sem cruzamento nao tem gatilho") {
+    const std::vector<double> s{0.0, 0.1, 0.2};
+    REQUIRE_FALSE(scope::findRisingEdge(s, 0.5).has_value());
 }

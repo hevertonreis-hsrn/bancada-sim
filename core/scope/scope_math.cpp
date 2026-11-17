@@ -25,4 +25,16 @@ double divisionsToNdc(double divisions, double totalDivisions) {
     return divisions / (totalDivisions / 2.0);
 }
 
+std::optional<std::size_t> findRisingEdge(const std::vector<double>& samples,
+                                          double level,
+                                          std::size_t from) {
+    for (std::size_t i = from + 1; i < samples.size(); ++i) {
+        // Cruzamento: estava abaixo do nível na amostra anterior e está em cima agora
+        if (samples[i - 1] < level && samples[i] >= level) {
+            return i;
+        }
+    }
+    return std::nullopt;
+}
+
 }  // namespace scope
